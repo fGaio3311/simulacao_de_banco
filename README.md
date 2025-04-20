@@ -1,104 +1,93 @@
-# simulacao_de_banco
-Este repositório contém uma API bancária completa desenvolvida com FastAPI, SQLite e SQLAlchemy, oferecendo funcionalidades de registro de usuários, login com JWT, consulta de saldo, depósitos e transferências via Pix, além de endpoint para logs de ações
-FastAPI
-SQLAlchemy
-. O projeto segue boas práticas de segurança baseadas na OWASP API Security Top 10, incluindo proteção contra injeção SQL, autenticação robusta e registro detalhado de logs de ações
-OWASP Foundation
-OWASP Foundation
-. Inclui testes unitários e de integração utilizando pytest para validar cada endpoint e garantir cobertura contra vulnerabilidades como brute force, mass assignment e autorização em nível de objeto
-pytest Documentation
-OWASP Foundation
-. Este README detalha instruções de instalação, execução, testes e considerações de segurança para facilitar o uso e manutenção
-GitHub Docs
-.
-Features
+📄 Documentação: tests/test_api.py
+📌 Objetivo
 
-A API oferece as seguintes funcionalidades principais
-GitHub
-:
+Este script implementa testes automatizados para uma API bancária baseada em FastAPI. Os testes cobrem:
 
-    Registro de usuário
+    Funcionalidades básicas (registro, login, saldo, depósito, PIX, logs)
 
-    Autenticação e geração de token JWT
+    Testes de segurança e vulnerabilidades comuns, como:
 
-    Consulta de saldo
+        Injeção de SQL
 
-    Depósito
+        Autenticação quebrada
 
-    Transferência via Pix
+        Atribuição indevida de atributos
 
-    Logs de ações com timestamp
+        Uso excessivo de recursos
 
-Tech Stack
+        Falta de monitoramento/logs
 
-O projeto utiliza FastAPI como framework web, SQLite como banco de dados relacional, SQLAlchemy como ORM e PyJWT para geração e verificação de tokens JWT
-FastAPI
-SQLAlchemy
-.
-Installation
+⚙️ Setup e Fixtures
+🔧 Banco de Testes com SQLite
 
-Utilize um ambiente virtual Python e instale as dependências com:
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
-pip install -r requirements.txt
+Usa SQLite em memória para testes rápidos e isolados, sem afetar o banco real.
+🔁 client Fixture
 
-que inclui fastapi, uvicorn[standard], sqlalchemy, passlib[bcrypt] e python-jose
-Stack Overflow
-Uvicorn
-.
-O arquivo requirements.txt pode ser gerado com pip freeze > requirements.txt para reproduzir o ambiente
-GitHub
-.
-Usage
+@pytest.fixture(scope="module")
+def client():
 
-Para iniciar o servidor em modo de desenvolvimento:
+Cria um cliente de teste com TestClient, usando uma versão sobrescrita de get_db() para conectar ao banco de testes.
+✅ Testes de Funcionalidades Básicas
+🔐 test_register_and_login
 
-uvicorn main:app --reload
+Testa:
 
-Uvicorn
-FastAPI
-.
-API Endpoints
+    Registro de usuário com /register
 
-Os principais endpoints disponíveis são
-FastAPI
-:
+    Login com /login
 
-    POST /register – cria usuário
+    Verifica se o token de autenticação é retornado
 
-    POST /login – autentica e retorna JWT
+💰 test_balance_deposit_and_pix_and_logs
 
-    GET /balance – consulta saldo
+Testa:
 
-    POST /deposit – realiza depósito
+    Consulta de saldo inicial
 
-    POST /pix – transfere via Pix
+    Depósito de valor
 
-    GET /logs – retorna histórico de ações
+    Transferência via PIX
 
-Testing
+    Registro de ações no log
 
-Os testes unitários e de integração são implementados com pytest, localizados na pasta tests, e podem ser executados via:
+Assegura que todas essas ações sejam registradas corretamente.
+🔐 Testes de Segurança (Vulnerabilidades OWASP)
+🛡️ test_sql_injection_login
 
-pytest
+Simula injeção SQL no login com:
 
-pytest Documentation
-. Eles cobrem registro, login, operações bancárias e verificação de segurança como injeção SQL e brute force
-OWASP Foundation
-OWASP Foundation
-.
-Security Considerations
+{"username": "' OR 1=1 --", "password": "x"}
 
-Este projeto segue as recomendações do OWASP API Security Top 10, incluindo tratamento de SQL injection, limitação de tentativas de login e validação de ações do usuário
-OWASP Foundation
-OWASP Foundation
-. Tokens JWT têm expiração configurada por padrão, e recomenda-se armazenar segredos em variáveis de ambiente para maior segurança
-PyPI
-.
-Contributing
+Valida que o sistema rejeita com status 401 (não autorizado).
+🚪 test_broken_authentication_bruteforce
 
-Patches, issues e sugestões são bem-vindos. Por favor, abra uma issue ou pull request no GitHub
-GitHub Docs
-.
-License
+Tenta força bruta com várias senhas erradas. Espera que o sistema continue retornando 401 sem bloquear ou limitar requisições (o que seria uma falha de segurança).
+🔓 test_broken_object_level_authorization
 
-Este projeto está licenciado sob a MIT License.
+Testa se um usuário pode acessar dados de outro (/balance/2). Espera-se 401 ou 403, para impedir acesso não autorizado.
+🧬 test_mass_assignment_on_register
+
+Tenta manipular atributos protegidos (como balance) durante o registro:
+
+{"username": "eve", "password": "senha789", "balance": 1000000}
+
+Espera que o saldo real de eve seja 0, evitando mass assignment.
+⚠️ test_unrestricted_resource_consumption
+
+Simula um depósito com valor extremamente alto:
+
+big_amount = 10**18
+
+Espera que o sistema trate com erro (400) ou aceite com controle.
+📋 test_insufficient_logging_and_monitoring
+
+Verifica se uma ação (como consultar saldo) é registrada nos logs. Exige que logs estejam funcionando como forma de monitoramento.
+📎 Observações Finais
+
+    Os testes usam uma abordagem black-box e simulam o comportamento real do usuário.
+
+    Cobrem tanto funcionalidade esperada quanto possíveis ataques/explorações.
+
+    A estrutura pode ser expandida para incluir testes de performance, autenticação multi-fator, verificação de tempo de resposta etc.
