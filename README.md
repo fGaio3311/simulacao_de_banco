@@ -54,6 +54,7 @@ Testa:
 
 Assegura que todas essas ações sejam registradas corretamente.
 🔐 Testes de Segurança (Vulnerabilidades OWASP)
+
 🛡️ test_sql_injection_login
 
 Simula injeção SQL no login com:
@@ -64,9 +65,11 @@ Valida que o sistema rejeita com status 401 (não autorizado).
 🚪 test_broken_authentication_bruteforce
 
 Tenta força bruta com várias senhas erradas. Espera que o sistema continue retornando 401 sem bloquear ou limitar requisições (o que seria uma falha de segurança).
+
 🔓 test_broken_object_level_authorization
 
 Testa se um usuário pode acessar dados de outro (/balance/2). Espera-se 401 ou 403, para impedir acesso não autorizado.
+
 🧬 test_mass_assignment_on_register
 
 Tenta manipular atributos protegidos (como balance) durante o registro:
@@ -74,6 +77,7 @@ Tenta manipular atributos protegidos (como balance) durante o registro:
 {"username": "eve", "password": "senha789", "balance": 1000000}
 
 Espera que o saldo real de eve seja 0, evitando mass assignment.
+
 ⚠️ test_unrestricted_resource_consumption
 
 Simula um depósito com valor extremamente alto:
@@ -81,6 +85,7 @@ Simula um depósito com valor extremamente alto:
 big_amount = 10**18
 
 Espera que o sistema trate com erro (400) ou aceite com controle.
+
 📋 test_insufficient_logging_and_monitoring
 
 Verifica se uma ação (como consultar saldo) é registrada nos logs. Exige que logs estejam funcionando como forma de monitoramento.
