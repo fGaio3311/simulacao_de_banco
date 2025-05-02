@@ -127,3 +127,139 @@ def test_insufficient_logging_and_monitoring(client):
     # Verifica se o log foi gravado
     logs = client.get("/logs", headers=headers).json()
     assert any(l["action"] == "balance" for l in logs)  # logger mínimo :contentReference[oaicite:5]{index=5}
+
+# tests/test_api.py
+
+# ... (imports anteriores)
+
+# --- Testes Adicionais de Validação de Entrada ---
+
+def test_negative_or_zero_amount(client):
+    # Registro e login
+    client.post("/register", json={"username": "user1", "password": "pass1"})
+    token = client.post("/login", json={"username": "user1", "password": "pass1"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Depósito com valor negativo
+    resp = client.post("/deposit", headers=headers, json={"amount": -100})
+    assert resp.status_code == 400
+    assert "Valor deve ser positivo" in resp.json()["detail"]
+
+    # Depósito com zero
+    resp = client.post("/deposit", headers=headers, json={"amount": 0})
+    assert resp.status_code == 400
+
+def test_non_numeric_amount(client):
+    # Login (usuário existente)
+    token = client.post("/login", json={"username": "user1", "password": "pass1"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Depósito com string
+    resp = client.post("/deposit", headers=headers, json={"amount": "cem"})
+    assert resp.status_code == 422  # Erro de validação do Pydantic
+
+# --- Testes de Saldo Insuficiente no PIX ---
+
+def test_insufficient_balance_pix(client):
+    # Cria usuários
+    client.post("/register", json={"username": "sender", "password": "pass"})
+    client.post("/register", json={"username": "receiver", "password": "pass"})
+
+    # Login como sender
+    token = client.post("/login", json={"username": "sender", "password": "pass"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Tenta transferir 100 sem saldo
+    resp = client.post("/pix", headers=headers, json={"to_user": "receiver", "amount": 100})
+    assert resp.status_code == 400
+    assert "Saldo insuficiente" in resp.json()["detail"]
+
+# --- Testes de Vulnerabilidades JWT ---
+
+def test_jwt_tampering(client):
+    # Gera token válido
+    client.post("/register", json={"username": "victim", "password": "pass"})
+    token = client.post("/login", json={"username": "victim", "password": "pass"}).json()["access_token"]
+
+    # Modifica o token (substitui 'victim' por 'attacker' no payload)
+    from jose import jwt
+    payload = jwt.decode(token, options={"verify_signature": False})
+    payload["sub"] = "attacker"
+    fake_token = jwt.encode(payload, "secret", algorithm="HS256")  # Supondo segredo vazado
+
+    # Tenta acessar com token modificado
+    headers = {"Authorization": f"Bearer {fake_token}"}
+    resp = client.get("/balance", headers=headers)
+    assert resp.status_code in (401, 403)
+
+# --- Testes de Vazamento de Informação ---
+
+def test_login_error_leakage(client):
+    # Usuário inexistente
+    resp = client.post("/login", json={"username": "ghost", "password": "wrong"})
+    assert resp.json()["detail"] == "Credenciais inválidas"
+
+    # Usuário existente, senha errada
+    client.post("/register", json={"username": "realuser", "password": "pass"})
+    resp = client.post("/login", json={"username": "realuser", "password": "wrong"})
+    assert resp.json()["detail"] == "Credenciais inválidas"  # Mesma mensagem
+
+# --- Testes de Race Conditions ---
+
+import threading
+
+def test_concurrent_deposits(client):
+    client.post("/register", json={"username": "raceuser", "password": "pass"})
+    token = client.post("/login", json={"username": "raceuser", "password": "pass"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    def deposit():
+        client.post("/deposit", headers=headers, json={"amount": 1})
+
+    threads = [threading.Thread(target=deposit) for _ in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    resp = client.get("/balance", headers=headers)
+    assert resp.json()["balance"] == 10  # Se houver race condition, pode ser <10
+
+# --- Testes de Rate Limiting ---
+
+def test_rate_limiting_login(client):
+    for _ in range(5):
+        resp = client.post("/login", json={"username": "alice", "password": "wrong"})
+        assert resp.status_code == 401
+
+    # Sexta tentativa deve ser bloqueada
+    resp = client.post("/login", json={"username": "alice", "password": "wrong"})
+    assert resp.status_code == 429
+
+# --- Testes de Armazenamento de Senhas ---
+
+def test_password_hashing(client):
+    # Registra usuário
+    client.post("/register", json={"username": "hashuser", "password": "pass123"})
+
+    # Verifica no banco (usando a session)
+    db = TestingSessionLocal()
+    user = db.query(User).filter(User.username == "hashuser").first()
+    db.close()
+
+    assert user.password != "pass123"  # Senha deve estar hasheada
+    assert len(user.password) > 20  # Típico de hashes como bcrypt
+
+# --- Testes de XSS ---
+
+def test_xss_in_username(client):
+    # Tenta registrar com username malicioso
+    xss_payload = "<script>alert('xss')</script>"
+    resp = client.post("/register", json={"username": xss_payload, "password": "pass"})
+    assert resp.status_code == 400  # Deve bloquear input inválido
+
+    # Se permitir, verifica se o log escapa o HTML
+    token = client.post("/login", json={"username": xss_payload, "password": "pass"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    logs = client.get("/logs", headers=headers).json()
+    assert "<script>" not in logs[0]["action"]
