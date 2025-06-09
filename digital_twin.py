@@ -1,6 +1,9 @@
 
 import json
 import requests
+import statistics
+from collections import defaultdict
+from datetime import datetime
 
 class LogsExporter:
     """
@@ -82,6 +85,11 @@ class DigitalTwin:
             "n_depositos": 0,
             "n_pix": 0,
             # você pode adicionar outros campos conforme necessidade
+            "pix_amount_enviados": [],
+            "pix_amount_recebidos": [],
+            "login_timestamps": [],
+            "deposit_amounts": [],
+            "statistics": [],
         })
 
     def apply_event(self, event: dict):
@@ -113,6 +121,8 @@ class DigitalTwin:
         if action == "login":
             estado["ultimo_login"] = timestamp
             estado["n_logins"] += 1
+            if timestamp:
+                estado["login_timestamps"].append(timestamp)
 
         elif action == "balance":
             # apenas conta como consulta de saldo
@@ -128,9 +138,10 @@ class DigitalTwin:
             estado["saldo"] += amt
             estado["total_depositado"] += amt
             estado["n_depositos"] += 1
+            estado["deposit_amounts"].append(amt)
 
         elif action == "pix":
-            amount = event.get("amount", 0)
+            amount = float(event.get("amount", 0))
             to_user = event.get("to_user") or event.get("destinatario") or event.get("recipient")
             # Atualiza saldo do emitente
             try:
@@ -140,6 +151,7 @@ class DigitalTwin:
             estado["saldo"] -= amt
             estado["total_pix_enviado"] += amt
             estado["n_pix"] += 1
+            estado["pix_enviado_amounts"].append(amt)
 
             # Atualiza quem recebeu, se o campo existir
             if to_user:
@@ -148,6 +160,7 @@ class DigitalTwin:
                 receiver_state = self.users[to_user]
                 receiver_state["saldo"] += amt
                 receiver_state["total_pix_recebido"] += amt
+                receiver_state["pix_recebido_amounts"].append(amt)
 
         else:
             # Ação não reconhecida: apenas ignora ou imprime aviso
@@ -172,7 +185,47 @@ class DigitalTwin:
             }
         return report
 
+def compute_statistics(self, user:str):
 
+    estado = self.users[user]
+
+    pix_med_enviado = None
+
+    if estado["n_pix_enviado"] > 0:
+        pix_med_enviado = statistic.mean(estado["pix_amounts_enviados"])
+    
+    pix_med_recebido = None
+
+    if estado["n_pix_recebido"] > 0:
+        pix_med_recebido = statistic.mean(estado["pix_amounts_recebidos"])
+
+    deposito_medio = None
+
+    if estado["n_depositos"] > 0:
+        deposito_medio = statistic.mean(estado["deposit_amounts"])
+
+    janela_medio = None
+
+    if len(estado["login_timestamps"]) >= 2:
+        horas = []
+        login_timestamps = estado["login_timestamps"]
+        
+        for hr in estado["login_timestamps"]:
+            hora_decimal = hr.hour + hr.minute/60 + hr.second/3600 
+            horas.append(hora_decimal)
+
+    janela_media = statistic.mean(horas)
+
+    estado["statistics"] = {
+        "pix_med_enviado": pix_med_enviado,
+        "pix_med_recebido": pix_med_recebido,
+        "deposito_medio": deposito_medio,
+        "janela_media": janela_media,
+    # Você pode incluir também desvio-padrão ou quantis:
+        "dp_pix_enviado": statistics.pstdev(estado["pix_amounts_enviados"]) if estado["n_pix_enviado"] > 1 else None,
+        "dp_deposito": statistics.pstdev(estado["deposit_amounts"]) if estado["n_depositos"] > 1 else None,
+    }
+        
 def process_logs_file(file_path: str, twin: DigitalTwin):
     """
     Abre um arquivo JSON-lines (um JSON por linha), faz json.loads e chama twin.apply_event() para cada.
