@@ -1,0 +1,47 @@
+services:
+  api:
+    build: .
+    container_name: digital-twin-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres-twin
+      - mqtt-broker
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: digital-twin-frontend
+    ports:
+      - "3000:80"      # <- host:container, 80 é o nginx
+    depends_on:
+      - api
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  postgres-twin:
+    image: postgres:15
+    container_name: postgres-twin
+    environment:
+      - POSTGRES_USER=twin
+      - POSTGRES_PASSWORD=twin
+      - POSTGRES_DB=twin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  pgdata:
