@@ -20,8 +20,11 @@ import json
 from paho.mqtt import client as mqtt_client
 
 # Cria e conecta um cliente global para publicação
+MQTT_HOST = os.getenv("MQTT_BROKER_HOST", "mqtt-broker")
+MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+
 mqtt_client_global = mqtt_client.Client(client_id="api-publisher", protocol=mqtt_client.MQTTv311)
-mqtt_client_global.connect("localhost", 1883)
+mqtt_client_global.connect(MQTT_HOST, MQTT_PORT)
 mqtt_client_global.loop_start()
 
 # --- Database Setup ---
@@ -335,60 +338,60 @@ def deposit(
     db.commit()
     logger.info("deposit", extra={"user": current_user.username, "action": "deposit", "amount": req.amount})
     return {"balance": current_user.balance}
+from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
 
 @app.post("/pix")
 def pix(
     req: PixRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
+    # Validações iniciais
     if req.amount <= 0:
-        raise HTTPException(400, "Valor deve ser positivo")
+        raise HTTPException(status_code=400, detail="Valor deve ser positivo")
+    recipient = db.query(User).filter(User.username == req.to_user).first()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Usuário destinatário não encontrado")
+    if current_user.balance < req.amount:
+        raise HTTPException(status_code=400, detail="Saldo insuficiente")
 
-    # tudo dentro de um único transaction block
     try:
-        with db.begin():
-            # bloqueia as linhas para evitar condições de corrida
-            sender = (
-                db.query(User)
-                  .filter(User.id == current_user.id)
-                  .with_for_update()
-                  .one()
-            )
-            recipient = (
-                db.query(User)
-                  .filter(User.username == req.to_user)
-                  .with_for_update()
-                  .first()
-            )
-            if not recipient:
-                raise HTTPException(404, "Usuário destinatário não encontrado")
-            if sender.balance < req.amount:
-                raise HTTPException(400, "Saldo insuficiente")
+        # (opcional em Postgres) bloqueia ambas as linhas
+        sender = (
+            db.query(User)
+              .filter(User.id == current_user.id)
+              .with_for_update()
+              .one()
+        )
+        receiver = (
+            db.query(User)
+              .filter(User.id == recipient.id)
+              .with_for_update()
+              .one()
+        )
 
-            sender.balance -= req.amount
-            recipient.balance += req.amount
+        # Ajusta saldos
+        sender.balance -= req.amount
+        receiver.balance += req.amount
 
-            tx = Transaction(
-                user_id=sender.id, type="pix", amount=req.amount,
-                to_user=req.to_user  # ajuste no seu modelo se precisar
-            )
-            db.add(tx)
-    except HTTPException:
-        # já convertido em resposta apropriada
-        raise
-    except Exception:
-        # log geral, mas não vaza detalhes pro cliente
-        logger.error("erro ao processar pix", exc_info=True, extra={"user": current_user.username})
-        raise HTTPException(500, "Erro interno ao processar transferência")
+        # Registra transações
+        db.add(Transaction(user_id=sender.id,   type="pix",          amount=req.amount))
+        db.add(Transaction(user_id=receiver.id, type="pix_received", amount=req.amount))
 
-    # após commit, posso publicar com segurança
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.error("Erro ao processar pix", exc_info=True, extra={"user": current_user.username})
+        raise HTTPException(status_code=500, detail="Erro interno ao processar transferência")
+
+    # Depois do commit, publica no MQTT e no logger
     ev = {
         "timestamp": datetime.utcnow().isoformat(),
-        "user": current_user.username,
-        "action": "pix",
-        "amount": req.amount,
-        "to_user": req.to_user
+        "user":      current_user.username,
+        "action":    "pix",
+        "amount":    req.amount,
+        "to_user":   req.to_user,
     }
     mqtt_client_global.publish(f"banco/{current_user.username}/events", json.dumps(ev), qos=1)
     logger.info("pix", extra=ev)

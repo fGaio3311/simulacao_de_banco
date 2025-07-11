@@ -1,0 +1,7 @@
+# ↪ não envie a pasta de dependências do React
+frontend/node_modules
+
+# ↪ outras coisas que não precisam ir pro build da API
+__pycache__/
+*.py[cod]
+*.env

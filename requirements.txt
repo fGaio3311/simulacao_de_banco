@@ -4,4 +4,6 @@ sqlalchemy
 pydantic
 python-jose
 requests
-
+paho-mqtt
+psycopg2-binary
+python-multipart

@@ -1,35 +1,20 @@
-# 1) Imagem base Python
+# syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# 2) Dependências do sistema para Python e Node
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      build-essential \
-      curl \
-      ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-
-# 3) Instala Node.js (18.x) + npm
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
-
-# 4) Define diretório de trabalho
+# Cria diretório de trabalho
 WORKDIR /app
 
-# 5) Copia só o requirements (cache eficaz)
+# Copia só o requirements primeiro (para cache)
 COPY requirements.txt .
 
-# 6) Instala deps Python
+# Instala dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 7) Copia todo o resto do código
+# Copia o código da API
 COPY . .
 
-# 8) Expõe portas
+# Expõe a porta do Uvicorn
 EXPOSE 8000
-EXPOSE 3000
 
-# 9) Comando padrão
+# Roda a API
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
