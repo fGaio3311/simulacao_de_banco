@@ -1,70 +1,144 @@
-# Getting Started with Create React App
+# Banco Digital com Digital Twin e Dashboard React
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Este projeto consiste em um simulador de banco com funcionalidades de registro, autenticação, consulta de saldo, depósito e transferências via PIX, acompanhado de um Digital Twin dos usuários e um dashboard em React para visualização.
 
-## Available Scripts
+## Tecnologias Utilizadas
 
-In the project directory, you can run:
+* **Backend**: FastAPI, Uvicorn
+* **Banco de Dados**: PostgreSQL (ou SQLite para desenvolvimento)
+* **ORM**: SQLAlchemy
+* **Autenticação**: OAuth2 com JWT (python-jose)
+* **Mensageria**: MQTT (paho-mqtt, Eclipse Mosquitto)
+* **Frontend**: React (Create React App), Nginx para servir estáticos
+* **Testes de Carga**: Locust
+* **Infraestrutura**: Docker, Docker Compose
 
-### `npm start`
+## Estrutura de Diretórios
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+/                  # diretório raiz do projeto
+├── api/            # código Python da API
+│   ├── main.py
+│   ├── models.py
+│   ├── requirements.txt
+│   └── Dockerfile  # definição do container da API
+├── frontend/       # dashboard React
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   ├── package-lock.json
+│   └── Dockerfile  # build + nginx
+├── docker-compose.yml
+└── README.md       # você está aqui
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Rodando Localmente com Docker Compose
 
-### `npm test`
+1. Clonar o repositório:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+   ```bash
+   git clone <seu-repo-url> digital-twin
+   cd digital-twin
+   ```
+2. Subir todos os serviços:
 
-### `npm run build`
+   ```bash
+   docker-compose down --remove-orphans
+   docker-compose up -d --build
+   ```
+3. Verificar status:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+   ```bash
+   docker-compose ps
+   ```
+4. Testar endpoint de saúde da API:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+   ```bash
+   curl http://localhost:8000/ping
+   # deve retornar {"pong": true}
+   ```
+5. Abrir o dashboard React:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   * Navegar em [http://localhost:3000](http://localhost:3000)
 
-### `npm run eject`
+## Principais Endpoints da API
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+| Método | Rota                    | Descrição                                              |
+| ------ | ----------------------- | ------------------------------------------------------ |
+| POST   | `/register`             | Registra usuário (body JSON: `{ username, password }`) |
+| POST   | `/token`                | Emite token JWT (form data: `username, password`)      |
+| GET    | `/balance`              | Consulta saldo do usuário autenticado                  |
+| POST   | `/deposit`              | Faz depósito (body JSON: `{ amount }`)                 |
+| POST   | `/pix`                  | Transferência PIX (body JSON: `{ to_user, amount }`)   |
+| GET    | `/logs`                 | Lista logs de operações do usuário                     |
+| GET    | `/digital-twin/summary` | Estado agregado dos usuários no Digital Twin           |
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+> **Autenticação**: todas as rotas (exceto `/ping`, `/register` e `/token`) exigem cabeçalho:
+> `Authorization: Bearer <access_token>`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Dashboard React
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+O frontend é um aplicativo React gerado com Create React App e servido via Nginx. Após o build, ele está disponível em:
 
-## Learn More
+```
+http://localhost:3000
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Testes e Qualidade
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Testes Unitários (pytest)
 
-### Code Splitting
+No diretório da API:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```bash
+pip install -r api/requirements.txt
+pytest api/tests
+```
 
-### Analyzing the Bundle Size
+### Teste de Carga (Locust)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+1. Instalar Locust no host:
 
-### Making a Progressive Web App
+   ```bash
+   pip install locust
+   ```
+2. Rodar em modo headless:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+   ```bash
+   locust -f locustfile.py --headless -u 500 -r 50 --run-time 2m --host http://host.docker.internal:8000
+   ```
 
-### Advanced Configuration
+## Implantação (Deployment)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Para subir em produção, ajuste variáveis de ambiente no `docker-compose.yml` ou em um arquivo `.env`:
 
-### Deployment
+```yaml
+environment:
+  - DATABASE_URL=postgresql://user:pass@host:5432/db
+  - DB_POOL_SIZE=20
+  - DB_MAX_OVERFLOW=30
+  - DB_POOL_TIMEOUT=30
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Contribuindo
 
-### `npm run build` fails to minify
+1. Faça um fork deste repositório
+2. Crie uma branch com sua feature: `git checkout -b feature/nome`
+3. Commit suas mudanças: `git commit -m "feat: descrição da feature"`
+4. Envie para o repositório remoto: `git push origin feature/nome`
+5. Abra um Pull Request
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Lint e formatação automática
+
+Este projeto usa [pre-commit](https://pre-commit.com/) para:
+- corrigir finais de linha e espaços em branco
+- validar estilo com flake8
+- checar tipagem com mypy
+- rodar análises de segurança com bandit
+
+Para instalar localmente (virtualenv ativado):
+
+```bash
+py -m pip install pre-commit
+py -m pre_commit install
+pre-commit run --all-files
