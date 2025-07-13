@@ -1,44 +1,36 @@
-import { useState } from "react";
-import axios from "axios";
+import { useState } from 'react';
+import api from '../api';
 
-export default function DepositForm() {
-  const [amount, setAmount] = useState("");
-  const [message, setMessage] = useState(null);
+export default function DepositForm({ onSuccess }) {
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState(null);
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setError(null);
     try {
-      const token = localStorage.getItem("token");
-      const resp = await axios.post(
-        "http://localhost:8000/deposit",
-        { amount: parseFloat(amount) },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      setMessage(`Saldo atual: R$ ${resp.data.balance.toFixed(2)}`);
-      setAmount("");
+      const resp = await api.post('/deposit', { amount: Number(amount) });
+      onSuccess(resp.data.balance);
+      setAmount('');
     } catch (err) {
-      setMessage(err.response?.data?.detail || "Erro no depósito.");
+      setError(err.response?.data?.detail || 'Erro no depósito');
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Depósito</h2>
-      <input
-        type="number"
-        step="0.01"
-        placeholder="Valor"
-        value={amount}
-        onChange={e => setAmount(e.target.value)}
-        required
-      />
+      <label>
+        Valor para depositar:
+        <input
+          type="number"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          min="1"
+          required
+        />
+      </label>
       <button type="submit">Depositar</button>
-      {message && <p>{message}</p>}
+      {error && <p className="error">{error}</p>}
     </form>
   );
 }

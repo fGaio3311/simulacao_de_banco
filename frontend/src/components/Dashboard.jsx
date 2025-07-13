@@ -1,48 +1,43 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import DepositForm from './DepositForm';
 import PixForm     from './PixForm';
 
 export default function Dashboard() {
-  const [balance,    setBalance]    = useState(0);
-  const [twinSummary, setTwinSummary] = useState({});
-
-  const token = localStorage.getItem('token');
+  const [balance, setBalance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchBalance = async () => {
-    const resp = await axios.get('/balance', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setBalance(resp.data.balance);
-  };
-
-  const fetchTwin = async () => {
-    const resp = await axios.get('/digital-twin/summary');
-    setTwinSummary(resp.data);
-  };
-
-  const onSuccess = async () => {
-    await fetchBalance();
-    await fetchTwin();
+    try {
+      const resp = await api.get('/balance');
+      setBalance(resp.data.balance);
+    } catch (err) {
+      setError('Não foi possível carregar saldo');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchBalance();
-    fetchTwin();
   }, []);
+
+  if (loading) return <p>Carregando...</p>;
+  if (error) return <p className="error">{error}</p>;
 
   return (
     <div>
       <h1>Saldo: R$ {balance.toFixed(2)}</h1>
 
-      <div style={{ display: 'flex', gap: 24 }}>
-        <DepositForm onSuccess={onSuccess} />
-        <PixForm     onSuccess={onSuccess} />
-      </div>
+      <section>
+        <h2>Fazer Depósito</h2>
+        <DepositForm onSuccess={setBalance} />
+      </section>
 
       <section>
-        <h2>Resumo Digital Twin</h2>
-        <pre>{JSON.stringify(twinSummary, null, 2)}</pre>
+        <h2>Fazer Pix</h2>
+        <PixForm onSuccess={setBalance} />
       </section>
     </div>
   );
