@@ -1,36 +1,32 @@
-import { useState } from 'react';
-import api from '../api';
+// src/components/DepositForm.jsx
+import { useState } from 'react'
+import { deposit }  from '../api'
 
-export default function DepositForm({ onSuccess }) {
-  const [amount, setAmount] = useState('');
-  const [error, setError] = useState(null);
+export default function DepositForm({ onDone }) {
+  const [amt, setAmt]   = useState('')
+  const [error, setError] = useState(null)
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setError(null);
+  async function handle(e) {
+    e.preventDefault()
     try {
-      const resp = await api.post('/deposit', { amount: Number(amount) });
-      onSuccess(resp.data.balance);
-      setAmount('');
+      await deposit(parseFloat(amt))
+      setAmt('')
+      onDone()
+      setError(null)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erro no depósito');
+      setError(err.response?.data?.detail || 'Erro no depósito')
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Valor para depositar:
-        <input
-          type="number"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          min="1"
-          required
-        />
-      </label>
-      <button type="submit">Depositar</button>
-      {error && <p className="error">{error}</p>}
+    <form onSubmit={handle}>
+      <input
+        placeholder="Valor"
+        value={amt}
+        onChange={e => setAmt(e.target.value)}
+      />
+      <button>Depósito</button>
+      {error && <p style={{color:'red'}}>{error}</p>}
     </form>
-  );
+  )
 }

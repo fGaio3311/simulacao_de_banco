@@ -193,7 +193,7 @@ def compute_statistics(self, user:str):
 
     if estado["n_pix_enviado"] > 0:
         pix_med_enviado = statistic.mean(estado["pix_amounts_enviados"])
-    
+
     pix_med_recebido = None
 
     if estado["n_pix_recebido"] > 0:
@@ -209,9 +209,9 @@ def compute_statistics(self, user:str):
     if len(estado["login_timestamps"]) >= 2:
         horas = []
         login_timestamps = estado["login_timestamps"]
-        
+
         for hr in estado["login_timestamps"]:
-            hora_decimal = hr.hour + hr.minute/60 + hr.second/3600 
+            hora_decimal = hr.hour + hr.minute/60 + hr.second/3600
             horas.append(hora_decimal)
 
     janela_media = statistic.mean(horas)
@@ -225,7 +225,7 @@ def compute_statistics(self, user:str):
         "dp_pix_enviado": statistics.pstdev(estado["pix_amounts_enviados"]) if estado["n_pix_enviado"] > 1 else None,
         "dp_deposito": statistics.pstdev(estado["deposit_amounts"]) if estado["n_depositos"] > 1 else None,
     }
-        
+
 def process_logs_file(file_path: str, twin: DigitalTwin):
     """
     Abre um arquivo JSON-lines (um JSON por linha), faz json.loads e chama twin.apply_event() para cada.

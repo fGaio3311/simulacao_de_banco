@@ -1,50 +1,39 @@
-import { useState } from 'react';
-import api from '../api';
+// src/components/PixForm.jsx
+import { useState } from 'react'
+import { pix }         from '../api'
 
-export default function PixForm({ onSuccess }) {
-  const [toUser, setToUser] = useState('');
-  const [amount, setAmount] = useState('');
-  const [error, setError] = useState(null);
+export default function PixForm({ onDone }) {
+  const [toUser, setToUser] = useState('')
+  const [amt, setAmt]       = useState('')
+  const [error, setError]   = useState(null)
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setError(null);
+  async function handle(e) {
+    e.preventDefault()
     try {
-      const resp = await api.post('/pix', {
-        to_user: toUser,
-        amount: Number(amount),
-      });
-      onSuccess(resp.data.balance);
-      setToUser('');
-      setAmount('');
+      await pix(toUser, parseFloat(amt))
+      setToUser('')
+      setAmt('')
+      onDone()
+      setError(null)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erro no Pix');
+      setError(err.response?.data?.detail || 'Erro no PIX')
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Destinatário:
-        <input
-          type="text"
-          value={toUser}
-          onChange={e => setToUser(e.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Valor:
-        <input
-          type="number"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          min="1"
-          required
-        />
-      </label>
-      <button type="submit">Enviar Pix</button>
-      {error && <p className="error">{error}</p>}
+    <form onSubmit={handle}>
+      <input
+        placeholder="Para usuário"
+        value={toUser}
+        onChange={e => setToUser(e.target.value)}
+      />
+      <input
+        placeholder="Valor"
+        value={amt}
+        onChange={e => setAmt(e.target.value)}
+      />
+      <button>PIX</button>
+      {error && <p style={{color:'red'}}>{error}</p>}
     </form>
-  );
+  )
 }

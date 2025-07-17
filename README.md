@@ -90,52 +90,52 @@ Espera que o sistema trate com erro (400) ou aceite com controle.
 
 🔒 **Testes de Segurança Adicionais (OWASP Expandido)**
 
-➕ **test_negative_or_zero_amount**  
+➕ **test_negative_or_zero_amount**
 Verifica rejeição de valores inválidos em transações:
 - Depósitos com valores negativos ou zero devem retornar 400
 - Mensagens de erro claras ("Valor deve ser positivo")
 
-💸 **test_insufficient_balance_pix**  
+💸 **test_insufficient_balance_pix**
 Valida tratamento de saldo insuficiente em transferências PIX:
 - Bloqueia transferências acima do saldo disponível
 - Mensagem "Saldo insuficiente" e status 400
 
-🔑 **test_jwt_tampering**  
+🔑 **test_jwt_tampering**
 Testa integridade de tokens JWT:
 - Modificação maliciosa do payload (ex: alterar username)
 - Sistema deve rejeitar tokens adulterados (401/403)
 
-🤐 **test_login_error_leakage**  
+🤐 **test_login_error_leakage**
 Previne vazamento de informações sensíveis:
 - Mensagens de erro genéricas para login inválido
 - Não revela se usuário existe ou não
 
-⚡ **test_concurrent_deposits**  
+⚡ **test_concurrent_deposits**
 Detecta race conditions em operações concorrentes:
 - 10 depósitos simultâneos de 1 unidade
 - Saldo final deve ser exatamente 10
 
-🛑 **test_rate_limiting_login**  
+🛑 **test_rate_limiting_login**
 Protege contra força bruta:
 - Bloqueia após 5 tentativas falhas (status 429)
 - Implementa rate limiting básico
 
-🔐 **test_password_hashing**  
+🔐 **test_password_hashing**
 Garante armazenamento seguro de senhas:
 - Verifica se senhas estão hasheadas no banco
 - Hash não corresponde ao texto original
 
-🛡️ **test_xss_in_username**  
+🛡️ **test_xss_in_username**
 Previne Cross-Site Scripting:
 - Bloqueia registro com payloads HTML/JS no username
 - Sanitiza outputs nos logs
 
-🔄 **test_concurrent_deposits**  
+🔄 **test_concurrent_deposits**
 Teste de concorrência:
 - Simula múltiplas transações paralelas
 - Verifica consistência do saldo final
 
-🔍 **test_insufficient_logging_and_monitoring (Expandido)**  
+🔍 **test_insufficient_logging_and_monitoring (Expandido)**
 Valida:
 - Logs de todas as operações sensíveis
 - Rastreabilidade completa das transações
@@ -154,16 +154,16 @@ Valida:
 
 📌 **Observações Finais (Atualizadas)**
 
-1. **Cobertura Ampliada**  
+1. **Cobertura Ampliada**
    - 85% das vulnerabilidades OWASP Top 10 2023 cobertas
    - Foco em cenários realistas de ataques modernos
 
-2. **Técnicas Avançadas**  
+2. **Técnicas Avançadas**
    - Testes de concorrência com threading
    - Simulação de token JWT adulterado
    - Verificação de sanitização de inputs/outputs
 
-3. **Próximos Passos**  
+3. **Próximos Passos**
    ```python
    # Exemplo de expansão futura
    def test_mfa_bypass():

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   api:
     build: .
@@ -17,7 +19,7 @@ services:
       dockerfile: Dockerfile
     container_name: digital-twin-frontend
     ports:
-      - "3000:80"      # <- host:container, 80 é o nginx
+      - "3000:80"
     depends_on:
       - api
 
@@ -25,12 +27,21 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: mqtt-broker
     ports:
-      - "1883:1883"
+      - "1883:1883"  # Removido 127.0.0.1 para acesso entre containers
       - "9001:9001"
     volumes:
       - ./config:/mosquitto/config:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+
+  mqtt-subscriber:
+  build: .
+  container_name: mqtt-subscriber
+  command: python mqtt_subscriber.py
+  environment:
+    - MQTT_BROKER_HOST=mqtt-broker
+  depends_on:
+    - mqtt-broker
 
   postgres-twin:
     image: postgres:15
@@ -39,8 +50,6 @@ services:
       - POSTGRES_USER=twin
       - POSTGRES_PASSWORD=twin
       - POSTGRES_DB=twin
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

@@ -1,47 +1,51 @@
-import { useState } from 'react';
-import axios from 'axios';
+// src/components/LoginForm.jsx
+import { useState } from 'react'
+import axios from 'axios'
 
 export default function LoginForm({ onLogin }) {
-  const [user,  setUser]  = useState('');
-  const [pass,  setPass]  = useState('');
-  const [err,   setErr]   = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
-  const submit = async e => {
-    e.preventDefault();
-    setLoading(true);
+  const handleSubmit = async e => {
+    e.preventDefault()
+
     try {
-      const resp = await axios.post(
-        '/token',
-        `username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`,
+      // monta o body como form-urlencoded
+      const params = new URLSearchParams()
+      params.append('username', username)
+      params.append('password', password)
+
+      const res = await axios.post(
+        'http://localhost:8000/token',
+        params,
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      );
-      localStorage.setItem('token', resp.data.access_token);
-      onLogin(resp.data.access_token);
-    } catch (e) {
-      setErr(e.response?.data?.detail || e.message);
+      )
+
+      const token = res.data.access_token
+      localStorage.setItem('token', token)
+      onLogin(token)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Erro ao logar')
     }
-    setLoading(false);
-  };
+  }
 
   return (
-    <form onSubmit={submit}>
-      <h2>Entrar</h2>
+    <form onSubmit={handleSubmit}>
+      <h1>Entrar</h1>
       <input
-        value={user}
-        onChange={e => setUser(e.target.value)}
         placeholder="Usuário"
-        required
+        value={username}
+        onChange={e => setUsername(e.target.value)}
       />
       <input
-        type="password"
-        value={pass}
-        onChange={e => setPass(e.target.value)}
         placeholder="Senha"
-        required
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
       />
-      <button disabled={loading}>{loading ? '…' : 'Entrar'}</button>
-      {err && <p className="error">{err}</p>}
+      <button type="submit">Entrar</button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
     </form>
-  );
+  )
 }
