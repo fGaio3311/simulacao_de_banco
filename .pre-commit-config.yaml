@@ -1,24 +1,24 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
+    rev: 7.3.0
     hooks:
       - id: flake8
         args: [--max-line-length=88]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
+    rev: v1.17.0
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports]
+        args: ["--explicit-package-bases"]
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.8.6
     hooks:
       - id: bandit
-        args: [-r, src/, --skip, B101]  # escopo e exceções ajustáveis
+        args: ["-f", "txt", "-o", "bandit_output.txt", "--quiet"]

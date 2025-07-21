@@ -1,5 +1,6 @@
 from uuid import uuid4
-from locust import HttpUser, task, between
+from locust import HttpUser, task, between  # type: ignore[import]
+
 
 class BankUser(HttpUser):
     wait_time = between(1, 3)

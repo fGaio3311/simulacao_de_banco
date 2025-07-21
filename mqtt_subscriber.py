@@ -1,9 +1,8 @@
 import json
 import time
 import logging
-import os
 import socket
-from paho.mqtt import client as mqtt_client
+from paho.mqtt import client as mqtt_client  # type: ignore[import]
 from twin import twin  # Importe do novo módulo
 
 # Configuração do broker
@@ -27,12 +26,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mqtt-subscriber")
 
+
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         logger.info(f"Conectado ao broker MQTT em {BROKER_HOST}:{BROKER_PORT}!")
         client.subscribe(TOPIC, qos=1)
     else:
         logger.error(f"Falha de conexão, código {rc}")
+
 
 def on_message(client, userdata, msg):
     try:
@@ -49,6 +50,7 @@ def on_message(client, userdata, msg):
         logger.error(f"Mensagem com formato inválido: {msg.payload}")
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
+
 
 def run_subscriber():
     client = mqtt_client.Client(
@@ -72,6 +74,7 @@ def run_subscriber():
         logger.error("Conexão recusada. Verifique se o broker MQTT está ativo.")
     except Exception as e:
         logger.error(f"Erro inesperado: {str(e)}", exc_info=True)
+
 
 if __name__ == "__main__":
     run_subscriber()
